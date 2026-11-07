@@ -1,6 +1,11 @@
+import calendar
+from datetime import date
+from decimal import Decimal
+
 from sqlalchemy import text
 
 from app import db
+from app.models.pago import Pago
 
 
 def obtener_contratos(buscar="", estado="todos", usuario_id_propietario=None):
@@ -211,6 +216,55 @@ def _validar_datos_contrato(propiedad_id, inquilino_id, fecha_inicio, fecha_fin,
     return None
 
 
+
+def _fechas_pago_contrato(fecha_inicio, fecha_fin, dia_pago):
+    """Genera una fecha de vencimiento mensual dentro de la vigencia del contrato.
+
+    Si el día no existe en un mes (por ejemplo, día 31 en febrero), usa el
+    último día de ese mes. No crea mensualidades anteriores al inicio ni
+    posteriores a la finalización del contrato.
+    """
+    if isinstance(fecha_inicio, str):
+        fecha_inicio = date.fromisoformat(fecha_inicio)
+    if isinstance(fecha_fin, str):
+        fecha_fin = date.fromisoformat(fecha_fin)
+
+    anio, mes = fecha_inicio.year, fecha_inicio.month
+    fechas = []
+    while (anio, mes) <= (fecha_fin.year, fecha_fin.month):
+        ultimo_dia = calendar.monthrange(anio, mes)[1]
+        dia = min(int(dia_pago), ultimo_dia)
+        vencimiento = date(anio, mes, dia)
+        if fecha_inicio <= vencimiento <= fecha_fin:
+            fechas.append(vencimiento)
+        mes += 1
+        if mes == 13:
+            mes = 1
+            anio += 1
+    return fechas
+
+
+def _generar_pagos_faltantes(contrato_id, fecha_inicio, fecha_fin, monto_mensual, dia_pago):
+    """Crea solo mensualidades que aún no existan para el contrato."""
+    fechas = _fechas_pago_contrato(fecha_inicio, fecha_fin, dia_pago)
+    existentes = {
+        fila[0] for fila in db.session.query(Pago.fecha_esperada)
+        .filter(Pago.contrato_id == contrato_id, Pago.fecha_esperada.in_(fechas))
+        .all()
+    } if fechas else set()
+
+    for fecha_esperada in fechas:
+        if fecha_esperada not in existentes:
+            db.session.add(Pago(
+                contrato_id=contrato_id,
+                fecha_esperada=fecha_esperada,
+                fecha_pago=None,
+                monto=Decimal(str(monto_mensual)),
+                estado="VENCIDO" if fecha_esperada < date.today() else "PENDIENTE",
+                metodo_pago=None,
+            ))
+
+
 def crear_contrato(propiedad_id, inquilino_id, fecha_inicio, fecha_fin, monto_mensual, deposito, dia_pago):
     """
     Crea un contrato nuevo con estado ACTIVO.
@@ -250,7 +304,14 @@ def crear_contrato(propiedad_id, inquilino_id, fecha_inicio, fecha_fin, monto_me
         }
     ).scalar_one()
 
-    db.session.commit()
+    try:
+        _generar_pagos_faltantes(
+            nuevo_id, fecha_inicio, fecha_fin, monto_mensual, dia_pago
+        )
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return None, "No se pudo crear el contrato y generar sus pagos. Verifica los datos e inténtalo nuevamente."
 
     return nuevo_id, None
 
@@ -301,9 +362,44 @@ def actualizar_contrato(contrato_id, propiedad_id, inquilino_id, fecha_inicio, f
         }
     )
 
-    db.session.commit()
-
     if resultado.rowcount == 0:
+        db.session.rollback()
         return False, "No se encontró el contrato a actualizar."
 
+    try:
+        if estado == "ACTIVO":
+            _generar_pagos_faltantes(
+                contrato_id, fecha_inicio, fecha_fin, monto_mensual, dia_pago
+            )
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return False, "No se pudo actualizar el contrato y sincronizar sus pagos esperados."
+
     return True, None
+
+def generar_pagos_faltantes_contratos_activos():
+    """Completa mensualidades faltantes de contratos activos ya existentes.
+
+    Es idempotente: no crea otra fila si ya existe el pago de esa fecha.
+    Permite aplicar la regla automática también a contratos que estaban
+    registrados antes de incorporar la generación automática.
+    """
+    contratos = db.session.execute(
+        text("""
+            SELECT id, fecha_inicio, fecha_fin, monto_mensual, dia_pago
+            FROM contrato
+            WHERE estado = 'ACTIVO'
+            ORDER BY id
+        """)
+    ).mappings().all()
+    try:
+        for contrato in contratos:
+            _generar_pagos_faltantes(
+                contrato["id"], contrato["fecha_inicio"], contrato["fecha_fin"],
+                contrato["monto_mensual"], contrato["dia_pago"]
+            )
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        raise

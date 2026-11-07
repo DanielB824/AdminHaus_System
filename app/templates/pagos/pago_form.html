@@ -1,0 +1,25 @@
+{% extends "bases/base_admin.html" if session.get('rol') == 'ADMINISTRADOR' else "bases/base_gestor.html" if session.get('rol') == 'GESTOR' else "bases/base_propietario.html" %}
+{% block title %}{{ 'Registrar pago' if modo == 'nuevo' else 'Editar pago' if modo == 'editar' else 'Detalle del pago' }} - AdminHaus{% endblock %}
+{% block content %}
+<header class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4"><div><h1 class="ah-text-grande mb-1">{{ 'Registrar pago' if modo == 'nuevo' else 'Editar pago' if modo == 'editar' else 'Detalle del pago' }}</h1><p class="ah-text-subtitulos ah-text-secondary mb-0">Registra y consulta pagos vinculados a un contrato.</p></div><a href="{{ url_for('pagos.lista') }}" class="btn btn-light border"><i class="bi bi-arrow-left me-1"></i> Volver a pagos</a></header>
+{% if error %}<div class="alert alert-danger" role="alert">{{ error }}</div>{% endif %}
+<div class="ah-table-container p-4">
+<form method="post" novalidate>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="row g-3">
+    <div class="col-12"><label for="contrato_id" class="form-label fw-semibold">Contrato asociado <span class="text-danger">*</span></label>
+      {% if modo == 'ver' %}<input class="form-control" value="{{ form.propiedad_codigo }} — {{ form.inquilino_texto }}" readonly>
+      {% else %}<select id="contrato_id" name="contrato_id" class="form-select" required><option value="">Selecciona un contrato activo</option>{% for contrato in contratos %}<option value="{{ contrato.id }}" {% if form.contrato_id|string == contrato.id|string %}selected{% endif %}>{{ contrato.texto }}</option>{% endfor %}</select><div class="form-text">Solo se muestran contratos activos.</div>{% endif %}
+    </div>
+    <div class="col-md-6"><label for="fecha_esperada" class="form-label fw-semibold">Fecha esperada <span class="text-danger">*</span></label><input type="date" id="fecha_esperada" name="fecha_esperada" class="form-control" value="{{ form.fecha_esperada.isoformat() if form.fecha_esperada and form.fecha_esperada.isoformat is defined else form.fecha_esperada|default('', true) }}" {% if modo == 'ver' %}readonly{% else %}required{% endif %}></div>
+    <div class="col-md-6"><label for="monto" class="form-label fw-semibold">Monto (USD) <span class="text-danger">*</span></label><input type="number" id="monto" name="monto" min="0" step="0.01" class="form-control" value="{{ form.monto|default('', true) }}" {% if modo == 'ver' %}readonly{% else %}required{% endif %}></div>
+    <div class="col-md-6"><label for="estado" class="form-label fw-semibold">Estado <span class="text-danger">*</span></label><select id="estado" name="estado" class="form-select" {% if modo == 'ver' %}disabled{% endif %} required>{% for value,label in [('PENDIENTE','Pendiente (automático)'),('PAGADO','Pagado')] %}<option value="{{ value }}" {% if form.estado == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select><div class="form-text">Pendiente o vencido se determina automáticamente según la fecha esperada. Selecciona Pagado únicamente al confirmar el cobro.</div></div>
+    <div class="col-md-6"><label for="fecha_pago" class="form-label fw-semibold">Fecha de pago</label><input type="date" id="fecha_pago" name="fecha_pago" class="form-control" value="{{ form.fecha_pago.isoformat() if form.fecha_pago and form.fecha_pago.isoformat is defined else form.fecha_pago|default('', true) }}" {% if modo == 'ver' %}readonly{% endif %}><div class="form-text">Obligatoria para confirmar el cobro.</div></div>
+    <div class="col-md-6"><label for="metodo_pago" class="form-label fw-semibold">Método de pago</label><select id="metodo_pago" name="metodo_pago" class="form-select" {% if modo == 'ver' %}disabled{% endif %}><option value="">Selecciona un método</option>{% for metodo in metodos %}<option value="{{ metodo }}" {% if form.metodo_pago == metodo %}selected{% endif %}>{{ metodo.capitalize() }}</option>{% endfor %}</select><div class="form-text">Obligatorio para confirmar el cobro.</div></div>
+  </div>
+  {% if modo != 'ver' %}<div class="d-flex flex-wrap gap-2 justify-content-end mt-4"><a href="{{ url_for('pagos.lista') }}" class="btn btn-light border">Cancelar</a><button type="submit" class="ah-btn-primary">{{ 'Registrar pago' if modo == 'nuevo' else 'Guardar cambios' }}</button></div>{% endif %}
+</form></div>
+{% endblock %}
+{% block scripts %}<script>
+(() => { const estado = document.getElementById('estado'); const fecha = document.getElementById('fecha_pago'); const metodo = document.getElementById('metodo_pago'); if (!estado || !fecha || !metodo) return; const actualizar = () => { const pagado = estado.value === 'PAGADO'; fecha.required = pagado; metodo.required = pagado; }; estado.addEventListener('change', actualizar); actualizar(); })();
+</script>{% endblock %}

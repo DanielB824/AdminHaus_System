@@ -106,7 +106,7 @@
                 <!-- PAGOS -->
                 <li class="mb-2">
                     <a
-                        href="#"
+                        href="{{ url_for('pagos.lista') }}"
                         class="
                             d-block
                             ah-text-white
@@ -114,6 +114,7 @@
                             rounded
                             px-3
                             py-2
+                            {% if request.endpoint and request.endpoint.startswith('pagos.') %}ah-bg-primary-hover{% endif %}
                             text-decoration-none
                         "
                     >

@@ -1,0 +1,39 @@
+{% extends "bases/base_admin.html" if session.get('rol') == 'ADMINISTRADOR' else "bases/base_gestor.html" if session.get('rol') == 'GESTOR' else "bases/base_propietario.html" %}
+{% block title %}Pagos - AdminHaus{% endblock %}
+{% block content %}
+<header class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+  <div>
+    <h1 class="ah-text-grande mb-1">Pagos</h1>
+    <p class="ah-text-subtitulos ah-text-secondary mb-0">Consulta y gestiona los pagos asociados a los contratos.</p>
+  </div>
+  <p class="ah-text-subtitulos ah-text-secondary mb-0">Los pagos esperados se generan automáticamente a partir de los contratos activos.</p>
+</header>
+<form method="get" action="{{ url_for('pagos.lista') }}" class="d-flex flex-column flex-xl-row gap-2 mb-3">
+  <div class="ah-search flex-grow-1"><input type="search" name="buscar" value="{{ buscar }}" class="ah-form-control" placeholder="Buscar por propiedad o inquilino" aria-label="Buscar por propiedad o inquilino"></div>
+  <div class="d-flex flex-wrap gap-2 align-items-center">
+    {% for value,label in [('todos','Todos'),('pendiente','Pendiente'),('pagado','Pagado'),('vencido','Vencido')] %}
+      <button type="submit" name="estado" value="{{ value }}" class="btn {{ 'ah-btn-primary' if estado == value else 'btn-light border' }}">{{ label }}</button>
+    {% endfor %}
+    <a href="{{ url_for('pagos.lista') }}" class="btn btn-link text-decoration-none">Limpiar filtros</a>
+  </div>
+</form>
+<div class="ah-table-container"><div class="table-responsive">
+<table class="ah-table" style="min-width: 1020px;">
+  <caption class="visually-hidden">Listado de pagos</caption>
+  <thead><tr><th>Propiedad</th><th>Inquilino</th><th>Fecha esperada</th><th>Fecha de pago</th><th>Monto</th><th>Método de pago</th><th>Estado</th><th>Acciones</th></tr></thead>
+  <tbody>
+  {% for fila in filas %}
+  <tr>
+    <td><span class="ah-text-regular-negrita">{{ fila.propiedad_codigo }}</span></td>
+    <td>{{ fila.inquilino_texto }}</td>
+    <td>{{ fila.fecha_esperada.strftime('%d/%m/%Y') }}</td>
+    <td>{{ fila.fecha_pago.strftime('%d/%m/%Y') if fila.fecha_pago else '—' }}</td>
+    <td><span class="ah-text-regular-negrita">${{ '%.2f'|format(fila.monto) }}</span></td>
+    <td>{{ fila.metodo_pago.capitalize() if fila.metodo_pago else '—' }}</td>
+    <td>{% if fila.estado == 'PAGADO' %}<span class="ah-status ah-status-success ah-status-soft text-uppercase">Pagado</span>{% elif fila.estado == 'VENCIDO' %}<span class="ah-status ah-status-danger ah-status-soft text-uppercase">Vencido</span>{% else %}<span class="ah-status ah-status-warning ah-status-soft text-uppercase">Pendiente</span>{% endif %}</td>
+    <td><div class="d-flex gap-2"><a href="{{ url_for('pagos.ver', pago_id=fila.id) }}" class="btn bg-light" aria-label="Ver pago" title="Ver"><i class="bi bi-eye"></i></a>{% if session.get('rol') != 'PROPIETARIO' %}<a href="{{ url_for('pagos.editar', pago_id=fila.id) }}" class="btn bg-light" aria-label="Editar pago" title="Editar"><i class="bi bi-pencil"></i></a>{% endif %}</div></td>
+  </tr>
+  {% else %}<tr><td colspan="8" class="text-center py-4">No hay pagos que coincidan con los filtros.</td></tr>{% endfor %}
+  </tbody>
+</table></div></div>
+{% endblock %}
