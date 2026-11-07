@@ -1,0 +1,294 @@
+{% if session.get('rol') == 'ADMINISTRADOR' %}
+{% extends "bases/base_admin.html" %}
+{% elif session.get('rol') == 'GESTOR' %}
+{% extends "bases/base_gestor.html" %}
+{% else %}
+{% extends "bases/base_propietario.html" %}
+{% endif %}
+
+{% block title %}
+Proveedores y técnicos - AdminHaus
+{% endblock %}
+
+{% block content %}
+
+
+<!-- =========================================
+     ENCABEZADO
+     ========================================= -->
+
+<header class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+
+    <div>
+
+        <h1 class="ah-text-grande mb-0">
+            Proveedores y técnicos
+        </h1>
+
+        <p class="ah-text-subtitulos ah-text-secondary mb-0">
+            Gestiona los técnicos y empresas encargados de los servicios de mantenimiento.
+        </p>
+
+    </div>
+
+
+    <a
+        href="{{ url_for('proveedores.nuevo_proveedor') }}"
+        class="ah-btn-primary d-inline-block"
+    >
+        + Nuevo proveedor
+    </a>
+
+</header>
+
+
+
+<!-- =========================================
+     BUSCADOR Y FILTROS
+     ========================================= -->
+
+<div class="d-flex flex-column flex-lg-row align-items-lg-center gap-2 mb-4">
+
+    <!-- BUSCADOR -->
+
+    <div class="ah-search flex-grow-1">
+
+        <i class="bi bi-search ah-search-icon" aria-hidden="true"></i>
+
+        <input
+            type="search"
+            id="buscar-proveedor"
+            class="ah-form-control"
+            placeholder="Buscar por nombre..."
+            aria-label="Buscar proveedores por nombre"
+            autocomplete="off"
+        >
+
+    </div>
+
+
+    <!-- FILTRO POR TIPO -->
+
+    <div class="d-flex flex-wrap gap-2" role="group" aria-label="Filtrar por tipo">
+
+        <button type="button" class="ah-btn-primary" data-tipo="todos" aria-pressed="true">
+            Todos
+        </button>
+
+        <button type="button" class="ah-btn-secondary" data-tipo="TECNICO" aria-pressed="false">
+            Técnico
+        </button>
+
+        <button type="button" class="ah-btn-secondary" data-tipo="EMPRESA" aria-pressed="false">
+            Empresa
+        </button>
+
+    </div>
+
+
+    <!-- FILTRO POR ESPECIALIDAD -->
+
+    <select
+        id="filtro-especialidad"
+        class="ah-form-select fw-medium w-auto"
+        style="min-width: 168px; max-height: 40px;"
+        aria-label="Filtrar por especialidad"
+    >
+        <option value="">Especialidad</option>
+        {% for especialidad in especialidades %}
+        <option value="{{ especialidad }}">{{ especialidad }}</option>
+        {% endfor %}
+    </select>
+
+
+    <!-- LIMPIAR FILTROS -->
+
+    <button type="button" id="limpiar-filtros" class="btn btn-link fw-medium text-decoration-none">
+        Limpiar filtros
+    </button>
+
+</div>
+
+
+
+<!-- =========================================
+     TABLA DE PROVEEDORES
+     ========================================= -->
+
+<div class="ah-table-container">
+
+    <div class="table-responsive">
+
+        <table class="ah-table" style="min-width: 960px;">
+
+            <caption class="visually-hidden">
+                Lista de proveedores y técnicos
+            </caption>
+
+            <colgroup>
+                <col style="width: 20%;">
+                <col style="width: 12%;">
+                <col style="width: 13%;">
+                <col style="width: 22%;">
+                <col style="width: 18%;">
+                <col style="width: 15%;">
+            </colgroup>
+
+            <thead>
+
+                <tr>
+                    <th scope="col">Nombre</th>
+                    <th scope="col">Tipo</th>
+                    <th scope="col">Teléfono</th>
+                    <th scope="col">Correo</th>
+                    <th scope="col">Especialidad</th>
+                    <th scope="col">Acciones</th>
+                </tr>
+
+            </thead>
+
+            <tbody>
+
+                {% for fila in filas %}
+
+                <tr data-tipo="{{ fila.tipo }}" data-especialidad="{{ fila.especialidad or '' }}">
+
+                    <td>
+                        <span class="ah-text-regular-negrita ah-text">{{ fila.nombre }}</span>
+                    </td>
+
+                    <td>
+                        {% if fila.tipo == 'TECNICO' %}
+                        <span class="ah-status ah-status-info text-uppercase">Técnico</span>
+                        {% else %}
+                        <span class="ah-status ah-status-success text-uppercase">Empresa</span>
+                        {% endif %}
+                    </td>
+
+                    <td>{{ fila.telefono or '-' }}</td>
+
+                    <td>{{ fila.correo or '-' }}</td>
+
+                    <td>{{ fila.especialidad or '-' }}</td>
+
+                    <td>
+
+                        <div class="d-flex gap-2">
+
+                            <a
+                                href="{{ url_for('proveedores.ver_proveedor', proveedor_id=fila.id) }}"
+                                class="btn bg-light"
+                                aria-label="Ver a {{ fila.nombre }}"
+                                title="Ver"
+                            >
+                                <i class="bi bi-eye"></i>
+                            </a>
+
+                            <a
+                                href="{{ url_for('proveedores.editar_proveedor', proveedor_id=fila.id) }}"
+                                class="btn bg-light"
+                                aria-label="Editar a {{ fila.nombre }}"
+                                title="Editar"
+                            >
+                                <i class="bi bi-pencil"></i>
+                            </a>
+
+                        </div>
+
+                    </td>
+
+                </tr>
+
+                {% endfor %}
+
+
+                <!-- SIN RESULTADOS (se muestra al filtrar o si no hay datos) -->
+
+                <tr id="sin-resultados" class="{{ 'd-none' if filas else '' }}">
+
+                    <td colspan="6" class="text-center py-4">
+                        {% if filas %}
+                        No se encontraron proveedores con esos criterios.
+                        {% else %}
+                        Todavía no hay proveedores registrados.
+                        {% endif %}
+                    </td>
+
+                </tr>
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+</div>
+
+<script>
+    // Filtra las filas por nombre, tipo (Todos / Técnico / Empresa)
+    // y especialidad. Ignora mayúsculas y tildes.
+    (function () {
+        const buscador = document.getElementById('buscar-proveedor');
+        const botonesTipo = document.querySelectorAll('button[data-tipo]');
+        const filtroEspecialidad = document.getElementById('filtro-especialidad');
+        const botonLimpiar = document.getElementById('limpiar-filtros');
+        const filas = document.querySelectorAll('tbody tr[data-tipo]');
+        const sinResultados = document.getElementById('sin-resultados');
+
+        let tipoActivo = 'todos';
+
+        function normalizar(texto) {
+            return texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+        }
+
+        function marcarBotonActivo() {
+            botonesTipo.forEach(function (boton) {
+                const activo = boton.dataset.tipo === tipoActivo;
+                boton.classList.toggle('ah-btn-primary', activo);
+                boton.classList.toggle('ah-btn-secondary', !activo);
+                boton.setAttribute('aria-pressed', activo ? 'true' : 'false');
+            });
+        }
+
+        function filtrar() {
+            const texto = normalizar(buscador.value.trim());
+            const especialidad = filtroEspecialidad.value;
+            let visibles = 0;
+
+            filas.forEach(function (fila) {
+                const coincideTexto = normalizar(fila.cells[0].textContent).includes(texto);
+                const coincideTipo = tipoActivo === 'todos' || fila.dataset.tipo === tipoActivo;
+                const coincideEspecialidad = especialidad === '' || fila.dataset.especialidad === especialidad;
+                const mostrar = coincideTexto && coincideTipo && coincideEspecialidad;
+
+                fila.classList.toggle('d-none', !mostrar);
+                if (mostrar) { visibles++; }
+            });
+
+            sinResultados.classList.toggle('d-none', visibles > 0 || filas.length === 0);
+        }
+
+        buscador.addEventListener('input', filtrar);
+        filtroEspecialidad.addEventListener('change', filtrar);
+
+        botonesTipo.forEach(function (boton) {
+            boton.addEventListener('click', function () {
+                tipoActivo = boton.dataset.tipo;
+                marcarBotonActivo();
+                filtrar();
+            });
+        });
+
+        botonLimpiar.addEventListener('click', function () {
+            buscador.value = '';
+            filtroEspecialidad.value = '';
+            tipoActivo = 'todos';
+            marcarBotonActivo();
+            filtrar();
+        });
+    })();
+</script>
+
+
+
+{% endblock %}

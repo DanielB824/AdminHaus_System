@@ -1,0 +1,179 @@
+{% if session.get('rol') == 'ADMINISTRADOR' %}
+{% extends "bases/base_admin.html" %}
+{% elif session.get('rol') == 'GESTOR' %}
+{% extends "bases/base_gestor.html" %}
+{% else %}
+{% extends "bases/base_propietario.html" %}
+{% endif %}
+
+{% block title %}
+{% if modo == 'ver' %}Detalle del proveedor{% elif modo == 'editar' %}Editar proveedor{% else %}Nuevo proveedor{% endif %} - AdminHaus
+{% endblock %}
+
+{% block content %}
+
+<!-- =========================================
+     ENCABEZADO
+     ========================================= -->
+<header class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+
+    <div>
+        <h1 class="ah-text-grande mb-0">
+            {% if modo == 'ver' %}
+                Detalle del proveedor
+            {% elif modo == 'editar' %}
+                Editar proveedor
+            {% else %}
+                Nuevo proveedor
+            {% endif %}
+        </h1>
+
+        <p class="ah-text-subtitulos ah-text-secondary mb-0">
+            {% if modo == 'ver' %}
+                Información completa del técnico o empresa.
+            {% elif modo == 'editar' %}
+                Actualiza la información del técnico o empresa.
+            {% else %}
+                Registra la información del técnico o empresa encargada de servicios de mantenimiento.
+            {% endif %}
+        </p>
+    </div>
+
+    <div class="d-flex gap-2">
+
+        <a
+            href="{{ url_for('proveedores.proveedores') }}"
+            class="ah-btn-secondary d-inline-block">
+
+            {{ 'Volver' if modo == 'ver' else 'Cancelar' }}
+        </a>
+
+        {% if modo != 'ver' %}
+        <button
+            type="submit"
+            form="form-proveedor"
+            class="ah-btn-primary"
+        >
+            {{ 'Guardar cambios' if modo == 'editar' else 'Guardar proveedor' }}
+        </button>
+        {% endif %}
+
+    </div>
+
+</header>
+
+
+{% if error %}
+    <div class="alert alert-danger mb-3" role="alert">
+        {{ error }}
+    </div>
+{% endif %}
+
+
+<!-- =========================================
+     FORMULARIO / DETALLE
+     ========================================= -->
+{% if modo == 'ver' %}
+<div id="form-proveedor" class="ah-card overflow-hidden">
+{% else %}
+<form
+    id="form-proveedor"
+    method="POST"
+    action="{{ url_for('proveedores.editar_proveedor', proveedor_id=proveedor_id) if modo == 'editar' else url_for('proveedores.nuevo_proveedor') }}"
+    class="ah-card overflow-hidden"
+>
+
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+{% endif %}
+
+    <section class="ah-form-section p-4">
+
+        <h2 class="ah-form-section-title">
+            Información del proveedor
+        </h2>
+
+        <div class="row g-4">
+
+            <div class="col-12 col-md-6">
+                <label for="nombre" class="ah-form-label">Nombre *</label>
+                <input
+                    type="text"
+                    id="nombre"
+                    name="nombre"
+                    class="ah-form-control"
+                    placeholder="Ej. Carlos Méndez"
+                    value="{{ form.get('nombre', '') }}"
+                    maxlength="150"
+                    {% if modo == 'ver' %}readonly{% else %}required{% endif %}
+                >
+            </div>
+
+            <div class="col-12 col-md-6">
+                <label for="tipo" class="ah-form-label">Tipo *</label>
+                <select
+                    id="tipo"
+                    name="tipo"
+                    class="ah-form-select"
+                    {% if modo == 'ver' %}disabled{% else %}required{% endif %}
+                >
+                    <option value="" {% if not form.get('tipo') %}selected{% endif %}>Seleccionar tipo...</option>
+                    <option value="TECNICO" {% if form.get('tipo') == 'TECNICO' %}selected{% endif %}>Técnico</option>
+                    <option value="EMPRESA" {% if form.get('tipo') == 'EMPRESA' %}selected{% endif %}>Empresa</option>
+                </select>
+            </div>
+
+            <div class="col-12 col-md-6">
+                <label for="telefono" class="ah-form-label">Teléfono</label>
+                <input
+                    type="tel"
+                    id="telefono"
+                    name="telefono"
+                    class="ah-form-control"
+                    placeholder="Ej. 555-1234"
+                    value="{{ form.get('telefono', '') or '' }}"
+                    maxlength="20"
+                    autocomplete="tel"
+                    {% if modo == 'ver' %}readonly{% endif %}
+                >
+            </div>
+
+            <div class="col-12 col-md-6">
+                <label for="correo" class="ah-form-label">Correo electrónico</label>
+                <input
+                    type="email"
+                    id="correo"
+                    name="correo"
+                    class="ah-form-control"
+                    placeholder="Ej. carlos@email.com"
+                    value="{{ form.get('correo', '') or '' }}"
+                    maxlength="150"
+                    autocomplete="email"
+                    {% if modo == 'ver' %}readonly{% endif %}
+                >
+            </div>
+
+            <div class="col-12">
+                <label for="especialidad" class="ah-form-label">Especialidad</label>
+                <input
+                    type="text"
+                    id="especialidad"
+                    name="especialidad"
+                    class="ah-form-control"
+                    placeholder="Ej. Plomería"
+                    value="{{ form.get('especialidad', '') or '' }}"
+                    maxlength="100"
+                    {% if modo == 'ver' %}readonly{% endif %}
+                >
+            </div>
+
+        </div>
+
+    </section>
+
+{% if modo == 'ver' %}
+</div>
+{% else %}
+</form>
+{% endif %}
+
+{% endblock %}

@@ -179,7 +179,7 @@ AdminHaus - Panel administrativo
                 <!-- PROVEEDORES -->
                 <li class="mb-2">
                     <a
-                        href="#"
+                        href="{{ url_for('proveedores.proveedores') }}"
                         class="
                             d-block
                             ah-text-white
@@ -187,6 +187,9 @@ AdminHaus - Panel administrativo
                             rounded
                             px-3
                             py-2
+                            {% if request.endpoint and request.endpoint.startswith('proveedores.') %}
+                                ah-bg-primary-hover
+                            {% endif %}
                         "
                     >
                         Proveedores
